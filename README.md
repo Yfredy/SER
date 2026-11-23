@@ -32,3 +32,25 @@
 论文创新点：本文提出了一种轻量级的全卷积神经网络(FCNN)来进行语音情绪识别，FCNN使用具有不同滤波器大小的三个并行路径提取各种特征图。
 ![light-ser模型](/pic/light-ser.png "light-ser模型性能")
 Size表示模型大小，WA表示加权准确率，UA表示普通准确率,WF1表示加权F1 score
+## 三模型统一基准（CASIA 口径 6 类）
+
+把本仓库中的 **TIM-Net** 与 **Light-SERNet**，加上 **ERT-WFCCL**，放到同一标签空间
+（`angry, fear, happy, neutral, sad, surprise`）、同一数据划分、同一评测代码下对比，
+覆盖 EMO-DB / CASIA / SAVEE / RAVDESS 四个语料，并导出 **12 份可直接部署的模型文件**。
+
+**说话人互斥协议（未见过说话人）macro-F1（%）**：
+
+| 语料 | ERT-WFCCL | Light-SERNet | TIM-Net |
+| --- | --- | --- | --- |
+| EMO-DB | **86.2** | 72.6 | 60.1 |
+| CASIA | **40.3** | 20.6 | 14.8 |
+| SAVEE | **32.3** | 28.8 | 14.5 |
+| RAVDESS | **76.7** | 61.5 | 51.7 |
+
+- 详细分析：[`11-CASIA-6Class-Benchmark/docs/SER-ANALYSIS.md`](11-CASIA-6Class-Benchmark/docs/SER-ANALYSIS.md)
+- 可部署模型（Light-SERNet int8 仅 481 KB）：[`11-CASIA-6Class-Benchmark/exported_models/`](11-CASIA-6Class-Benchmark/exported_models/)
+- 复现代码：[`11-CASIA-6Class-Benchmark/code/`](11-CASIA-6Class-Benchmark/code/)
+
+> 注：随机划分会因说话人泄漏高估 10~30 个百分点（TIM-Net 在 CASIA 上从 81.6 掉到 14.8），
+> 上表采用说话人互斥划分。ERT-WFCCL 的领先同时包含预训练前端（Whisper-Base）的贡献，
+> 不能单独归因于架构。

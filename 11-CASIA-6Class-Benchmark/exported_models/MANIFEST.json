@@ -1,0 +1,100 @@
+{
+  "classes": [
+    "angry",
+    "fear",
+    "happy",
+    "neutral",
+    "sad",
+    "surprise"
+  ],
+  "protocol": "speaker",
+  "seed": 0,
+  "note": "one model per (model, corpus), trained on speaker-disjoint seed-0 split",
+  "files": [
+    {
+      "model": "ERT-WFCCL",
+      "corpus": "emodb",
+      "path": "ERT-WFCCL_emodb.pt",
+      "bytes": 713232,
+      "format": "torch state_dict"
+    },
+    {
+      "model": "ERT-WFCCL",
+      "corpus": "casia",
+      "path": "ERT-WFCCL_casia.pt",
+      "bytes": 713488,
+      "format": "torch state_dict"
+    },
+    {
+      "model": "ERT-WFCCL",
+      "corpus": "savee",
+      "path": "ERT-WFCCL_savee.pt",
+      "bytes": 713488,
+      "format": "torch state_dict"
+    },
+    {
+      "model": "ERT-WFCCL",
+      "corpus": "ravdess",
+      "path": "ERT-WFCCL_ravdess.pt",
+      "bytes": 713532,
+      "format": "torch state_dict"
+    },
+    {
+      "model": "Light-SERNet",
+      "corpus": "emodb",
+      "path": "Light-SERNet_emodb_int8.tflite",
+      "bytes": 491976,
+      "format": "tflite int8"
+    },
+    {
+      "model": "Light-SERNet",
+      "corpus": "casia",
+      "path": "Light-SERNet_casia_int8.tflite",
+      "bytes": 492112,
+      "format": "tflite int8"
+    },
+    {
+      "model": "Light-SERNet",
+      "corpus": "savee",
+      "path": "Light-SERNet_savee_int8.tflite",
+      "bytes": 492136,
+      "format": "tflite int8"
+    },
+    {
+      "model": "Light-SERNet",
+      "corpus": "ravdess",
+      "path": "Light-SERNet_ravdess_int8.tflite",
+      "bytes": 492136,
+      "format": "tflite int8"
+    },
+    {
+      "model": "TIM-Net",
+      "corpus": "emodb",
+      "path": "TIM-Net_emodb.hdf5",
+      "bytes": 781544,
+      "format": "keras hdf5 weights"
+    },
+    {
+      "model": "TIM-Net",
+      "corpus": "casia",
+      "path": "TIM-Net_casia.hdf5",
+      "bytes": 781512,
+      "format": "keras hdf5 weights"
+    },
+    {
+      "model": "TIM-Net",
+      "corpus": "savee",
+      "path": "TIM-Net_savee.hdf5",
+      "bytes": 785648,
+      "format": "keras hdf5 weights"
+    },
+    {
+      "model": "TIM-Net",
+      "corpus": "ravdess",
+      "path": "TIM-Net_ravdess.hdf5",
+      "bytes": 785764,
+      "format": "keras hdf5 weights"
+    }
+  ],
+  "total_bytes": 7956568
+}
