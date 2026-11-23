@@ -38,7 +38,16 @@ Size表示模型大小，WA表示加权准确率，UA表示普通准确率,WF1�
 （`angry, fear, happy, neutral, sad, surprise`）、同一数据划分、同一评测代码下对比，
 覆盖 EMO-DB / CASIA / SAVEE / RAVDESS 四个语料，并导出 **12 份可直接部署的模型文件**。
 
-**说话人互斥协议（未见过说话人）macro-F1（%）**：
+**论文协议（10 折随机 CV）UAR（%）** —— 用于与文献对比：
+
+| 语料 | ERT-WFCCL | TIM-Net | Light-SERNet | TIM-Net 论文 |
+| --- | --- | --- | --- | --- |
+| EMO-DB | **93.1** | 89.0 | 76.5 | 95.17 |
+| CASIA | 82.0 | **89.6** | 53.5 | 94.67 |
+| SAVEE | 73.2 | **75.8** | 55.8 | 86.07 |
+| RAVDESS | 85.7 | **88.5** | 87.5 | 91.93 |
+
+**说话人互斥协议（未见过说话人）macro-F1（%）** —— 部署真实表现：
 
 | 语料 | ERT-WFCCL | Light-SERNet | TIM-Net |
 | --- | --- | --- | --- |
@@ -47,10 +56,13 @@ Size表示模型大小，WA表示加权准确率，UA表示普通准确率,WF1�
 | SAVEE | **32.3** | 28.8 | 14.5 |
 | RAVDESS | **76.7** | 61.5 | 51.7 |
 
+两套协议差 10~30 个百分点（随机划分下测试样本 100% 能找到同人同情绪）。
+
 - 详细分析：[`11-CASIA-6Class-Benchmark/docs/SER-ANALYSIS.md`](11-CASIA-6Class-Benchmark/docs/SER-ANALYSIS.md)
 - 可部署模型（Light-SERNet int8 仅 481 KB）：[`11-CASIA-6Class-Benchmark/exported_models/`](11-CASIA-6Class-Benchmark/exported_models/)
 - 复现代码：[`11-CASIA-6Class-Benchmark/code/`](11-CASIA-6Class-Benchmark/code/)
 
-> 注：随机划分会因说话人泄漏高估 10~30 个百分点（TIM-Net 在 CASIA 上从 81.6 掉到 14.8），
-> 上表采用说话人互斥划分。ERT-WFCCL 的领先同时包含预训练前端（Whisper-Base）的贡献，
-> 不能单独归因于架构。
+> 注：TIM-Net 在四个语料的复现差值平均 −6.2 个百分点，复现成功。
+> 说话人互斥下 ERT-WFCCL 领先，但其优势包含预训练前端（Whisper-Base）的贡献，
+> 不能单独归因于架构。阶段 2 的增强/搜参/集成实验显示：大语料小幅提升，
+> 4 说话人小语料严重退化（详见目录内文档）。

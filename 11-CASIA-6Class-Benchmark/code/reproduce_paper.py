@@ -99,6 +99,14 @@ def _make_features(dataset: str, paths: list[str], model: str) -> np.ndarray:
         return features.cache_array(
             cache_dir, f"{dataset}_timnet_mfcc", paths, lambda ps: R.make_features(ps)
         )
+    if model == "ert":
+        from benchmark_ser import run_torch as R
+
+        whisper = os.path.join(_REPO_ROOT, "_local", "ERT-WFCCL-data", "whisper-base")
+        return features.cache_array(
+            cache_dir, f"{dataset}_whisper512", paths,
+            lambda ps: features.whisper_512(ps, whisper),
+        )
     from benchmark_ser import run_tf_light as R
 
     return features.cache_array(
@@ -117,6 +125,9 @@ def _train_fold(
     epochs: int,
 ) -> tuple[np.ndarray, float]:
     """Train one fold with the paper's settings; return test predictions + seconds."""
+    if model == "ert":
+        return _train_fold_ert(X, y, train_idx, test_idx, n_classes, seed)
+
     import tensorflow as tf
 
     from benchmark_ser import run_tf_light as L
@@ -195,6 +206,55 @@ def _train_fold(
 
     pred = np.argmax(net.predict(X[test_idx], verbose=0), axis=1)
     return pred, dt
+
+
+def _train_fold_ert(
+    X: np.ndarray,
+    y: np.ndarray,
+    train_idx: np.ndarray,
+    test_idx: np.ndarray,
+    n_classes: int,
+    seed: int,
+) -> tuple[np.ndarray, float]:
+    """Train ERT-WFCCL on one fold using its own pipeline (scaler + MLP + ERT).
+
+    ERT needs PyTorch and sklearn, so it runs in the torch env; the TIM/Light
+    paths above need TensorFlow.  A 10% slice of train is used for MLP early
+    stopping so the test fold is never touched during training.
+    """
+    import time as _time
+
+    import torch
+    from sklearn.preprocessing import StandardScaler
+
+    from benchmark_ser import run_torch as R
+
+    ert_features, ert_model = R._ert_modules()
+
+    rng = np.random.default_rng(seed)
+    shuffled = rng.permutation(train_idx)
+    n_val = max(1, int(0.1 * len(shuffled)))
+    val_idx = shuffled[:n_val]
+    tr_idx = shuffled[n_val:]
+
+    scaler = StandardScaler().fit(X[tr_idx])
+    torch.manual_seed(seed)
+
+    t0 = _time.time()
+    model, device = ert_features.train_mlp(
+        scaler.transform(X[tr_idx]), y[tr_idx], n_classes=None,
+        epochs=50, lr=5e-4, batch_size=64, seed=seed,
+        X_val=scaler.transform(X[val_idx]), y_val=y[val_idx], device=None,
+    )
+    emb = ert_features.extract_mlp_embedding(model, scaler.transform(X[tr_idx]), device=device)
+    clf = ert_model.ERTWFCCL(eps=0.5, n_estimators=200, random_state=seed)
+    clf.fit(emb, y[tr_idx])
+    dt = _time.time() - t0
+
+    test_emb = ert_features.extract_mlp_embedding(
+        model, scaler.transform(X[test_idx]), device=device
+    )
+    return clf.predict(test_emb), dt
 
 
 def _speaker_of(dataset: str, path: str) -> str:
@@ -341,7 +401,7 @@ def render(results: list[dict]) -> str:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--models", nargs="+", default=["tim"], choices=["tim", "light"])
+    parser.add_argument("--models", nargs="+", default=["tim"], choices=["tim", "light", "ert"])
     parser.add_argument("--datasets", nargs="+", default=list(RAW_CLASSES))
     parser.add_argument("--folds", type=int, default=10)
     parser.add_argument("--epochs", type=int, default=500)
