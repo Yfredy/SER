@@ -23,6 +23,8 @@ _SYNONYMS: dict[str, str | None] = {
     "sadness": "sad",
     "fearful": "fear",
     "surprised": "surprise",
+    # ESD ships capitalised class directories; normalisation lowercases first.
+    # (angry/happy/neutral/sad/surprise are already covered above.)
     # Explicitly rejected (mapped to None so normalize returns None)
     "boredom": None,
     "calm": None,

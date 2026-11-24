@@ -42,6 +42,10 @@ _WHISPER = os.path.join(_REPO_ROOT, "_local", "ERT-WFCCL-data", "whisper-base")
 _CACHE = os.path.join(_RESULTS_DIR, "cache")
 
 SOURCE = "ravdess"
+# ESD is a larger Chinese corpus (20 speakers, 35k utterances) but has only 5
+# classes -- no `fear`.  It is used as a *pretraining* source only; the
+# fine-tuning stage always uses the target corpus's own 6-class head.
+ESD = "esd"
 TARGETS = ("casia", "savee")
 PROTOCOL = "speaker"
 SEED = 0
@@ -80,6 +84,30 @@ def _feats(dataset: str, model: str) -> np.ndarray:
     from benchmark_ser import run_torch as R
 
     return R._extract_corpus_features(samples, _CACHE, _WHISPER)
+
+
+def _esd_samples():
+    """ESD samples (pretraining corpus; not part of ``by_dataset``)."""
+    return [s for s in manifest.load_manifest() if s.dataset == ESD]
+
+
+def _esd_feats() -> np.ndarray:
+    sm = _esd_samples()
+    return features.cache_array(
+        _CACHE, "esd_whisper512", [s.path for s in sm],
+        lambda ps: features.whisper_512(ps, _WHISPER, batch_size=32),
+    )
+
+
+def _esd_labels() -> np.ndarray:
+    """ESD labels mapped into the shared CLASSES index space.
+
+    ESD has no ``fear``, so its label set is a subset of CLASSES.  We keep the
+    global indices (so class *k* means the same emotion in both corpora) and
+    simply never observe the ``fear`` row during pretraining.
+    """
+    sm = _esd_samples()
+    return np.array([labels.CLASSES.index(s.label) for s in sm], dtype=np.int64)
 
 
 def _labels(dataset: str) -> np.ndarray:
@@ -357,6 +385,89 @@ def ablation_ert(target: str, epochs: int = 50) -> dict:
     }
 
 
+def ablation_ert_esd(target: str, epochs: int = 50) -> dict:
+    """Same controlled ablation, but pretrain on ESD instead of RAVDESS.
+
+    ESD has 20 Chinese speakers and 35k utterances (5 classes, no ``fear``).
+    The classifier head is 6-way in both stages so the ``fear`` row is simply
+    never trained during pretraining; it gets learned from the target corpus.
+    """
+    import torch
+    import torch.nn as nn
+    from sklearn.preprocessing import StandardScaler
+
+    from benchmark_ser import run_torch as R
+
+    ert_features, ert_model = R._ert_modules()
+    n_classes = len(labels.CLASSES)
+
+    Xs, ys = _esd_feats(), _esd_labels()
+    Xt, yt = _feats(target, "ert"), _labels(target)
+    sp = splits.load_all(_SPLITS)[f"{target}_{PROTOCOL}_seed{SEED}"]
+    tr, va, te = (np.asarray(sp[k]) for k in ("train", "val", "test"))
+
+    sc = StandardScaler().fit(Xt[tr])
+    dev = "cuda" if torch.cuda.is_available() else "cpu"
+
+    def _finetune(pretrained: bool) -> float:
+        torch.manual_seed(SEED)
+        model = ert_features.MLPWithClassifier(n_classes=n_classes).to(dev)
+        if pretrained:
+            sc_src = StandardScaler().fit(Xs)
+            src, _ = ert_features.train_mlp(
+                sc_src.transform(Xs), ys, n_classes=n_classes, epochs=epochs, lr=5e-4,
+                batch_size=256, seed=SEED,
+                X_val=sc_src.transform(Xs[:2000]), y_val=ys[:2000], device=None,
+            )
+            sd, own = src.state_dict(), model.state_dict()
+            model.load_state_dict(
+                {k: v for k, v in sd.items() if k in own and own[k].shape == v.shape},
+                strict=False,
+            )
+        Xtr = torch.tensor(sc.transform(Xt[tr]), dtype=torch.float32)
+        ytr = torch.tensor(yt[tr], dtype=torch.long)
+        Xva = torch.tensor(sc.transform(Xt[va]), dtype=torch.float32)
+        yva = torch.tensor(yt[va], dtype=torch.long)
+        opt = torch.optim.Adam(model.parameters(), lr=5e-4)
+        loss_fn = nn.CrossEntropyLoss()
+        rng = np.random.default_rng(SEED)
+        best = (-1.0, None)
+        for _ in range(epochs):
+            model.train()
+            perm = rng.permutation(len(ytr))
+            for lo in range(0, len(perm), 64):
+                idx = perm[lo : lo + 64]
+                if len(idx) < 2:
+                    continue
+                opt.zero_grad()
+                loss_fn(model(Xtr[idx].to(dev)), ytr[idx].to(dev)).backward()
+                opt.step()
+            model.eval()
+            with torch.no_grad():
+                acc = float((model(Xva.to(dev)).argmax(1).cpu() == yva).float().mean())
+            if acc > best[0]:
+                best = (acc, {k: v.clone() for k, v in model.state_dict().items()})
+        if best[1]:
+            model.load_state_dict(best[1])
+        model.eval()
+
+        emb = ert_features.extract_mlp_embedding(model, sc.transform(Xt[tr]), device=dev)
+        clf = ert_model.ERTWFCCL(eps=0.5, n_estimators=200, random_state=SEED)
+        clf.fit(emb, yt[tr])
+        ete = ert_features.extract_mlp_embedding(model, sc.transform(Xt[te]), device=dev)
+        return _macro_f1(yt[te], clf.predict(ete), n_classes) * 100
+
+    scratch = _finetune(False)
+    transferred = _finetune(True)
+    return {
+        "dataset": target, "model": "ert", "protocol": PROTOCOL,
+        "ablation": True, "source": ESD, "epochs": epochs,
+        "scratch_macro_f1": scratch,
+        "transfer_macro_f1": transferred,
+        "delta": transferred - scratch,
+    }
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--models", nargs="+", default=["ert"], choices=["ert", "tim", "light"])
@@ -367,12 +478,17 @@ def main(argv=None) -> int:
         "--ablation", action="store_true",
         help="run the controlled scratch-vs-transfer ablation (ERT only)",
     )
+    p.add_argument(
+        "--source", default=SOURCE, choices=[SOURCE, ESD],
+        help="pretraining corpus for --ablation",
+    )
     args = p.parse_args(argv)
 
     if args.ablation:
         out_rows = []
         for tgt in args.targets:
-            r = ablation_ert(tgt, args.epochs or 50)
+            fn = ablation_ert_esd if args.source == ESD else ablation_ert
+            r = fn(tgt, args.epochs or 50)
             out_rows.append(r)
             print(
                 f"[transfer] ABLATION {tgt}: scratch={r['scratch_macro_f1']:.1f} "

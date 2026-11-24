@@ -1,0 +1,24 @@
+[
+  {
+    "dataset": "casia",
+    "model": "ert",
+    "protocol": "speaker",
+    "ablation": true,
+    "source": "esd",
+    "epochs": 50,
+    "scratch_macro_f1": 32.02953684563895,
+    "transfer_macro_f1": 34.06242164937235,
+    "delta": 2.0328848037333955
+  },
+  {
+    "dataset": "savee",
+    "model": "ert",
+    "protocol": "speaker",
+    "ablation": true,
+    "source": "esd",
+    "epochs": 50,
+    "scratch_macro_f1": 10.987103174603172,
+    "transfer_macro_f1": 11.279461279461279,
+    "delta": 0.2923581048581063
+  }
+]

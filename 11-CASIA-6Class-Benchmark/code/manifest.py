@@ -24,7 +24,18 @@ DATASETS: dict[str, str] = {
     "ravdess": os.path.abspath(
         os.path.join(os.path.dirname(__file__), "..", "dataset", "RAVDESS", "wav")
     ),
+    # ESD is only used as a PRETRAINING corpus (5 classes, no fear).  It is not
+    # part of the unified 6-class benchmark.
+    "esd": os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "..", "dataset", "ESD_extract",
+            "Emotion Speech Dataset",
+        )
+    ),
 }
+
+# Corpora used for the unified 6-class benchmark (ESD excluded: no `fear`).
+BENCH_DATASETS = ("emodb", "casia", "savee", "ravdess")
 
 # ---------------------------------------------------------------------------
 # Sample
@@ -62,6 +73,8 @@ def sample_speaker(dataset: str, path: str) -> str:
         return stem.split("-")[2]
     elif dataset == "ravdess":
         return stem.split("-")[0]
+    elif dataset == "esd":
+        return stem.split("_")[0]
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
 
@@ -78,7 +91,11 @@ def _scan_corpora():
     picking up junk directories (``os.walk`` would grab ``__MACOSX`` etc.).
     """
     for ds, root in DATASETS.items():
-        for path in sorted(glob.glob(os.path.join(root, "*", "*.wav"))):
+        # ESD is laid out as <speaker>/<class>/*.wav (one level deeper than the
+        # other corpora, which are <class>/*.wav).
+        pattern = os.path.join(root, "*", "*", "*.wav") if ds == "esd" \
+            else os.path.join(root, "*", "*.wav")
+        for path in sorted(glob.glob(pattern)):
             stem = os.path.splitext(os.path.basename(path))[0]
             raw_label = os.path.basename(os.path.dirname(path))
             yield path, ds, raw_label, stem
@@ -114,9 +131,12 @@ def by_dataset(samples: list[Sample] | None = None) -> dict[str, list[Sample]]:
     """
     if samples is None:
         samples = load_manifest()
-    groups: dict[str, list[Sample]] = {ds: [] for ds in DATASETS}
+    # Only the benchmark corpora: ESD is a pretraining-only corpus (5 classes)
+    # and must not leak into the 24-partition benchmark or its splits.
+    groups: dict[str, list[Sample]] = {ds: [] for ds in BENCH_DATASETS}
     for s in samples:
-        groups[s.dataset].append(s)
+        if s.dataset in groups:
+            groups[s.dataset].append(s)
     return groups
 
 
