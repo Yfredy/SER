@@ -1,0 +1,50 @@
+[
+  {
+    "dataset": "casia",
+    "model": "tim",
+    "protocol": "speaker",
+    "source": "ravdess",
+    "pretrain_epochs": 200,
+    "test_macro_f1": 12.825224679243949,
+    "test_accuracy": 20.333333333333332,
+    "n_train": 600,
+    "n_test": 300,
+    "elapsed_s": 95.79271793365479
+  },
+  {
+    "dataset": "savee",
+    "model": "tim",
+    "protocol": "speaker",
+    "source": "ravdess",
+    "pretrain_epochs": 200,
+    "test_macro_f1": 7.633587786259542,
+    "test_accuracy": 28.57142857142857,
+    "n_train": 210,
+    "n_test": 105,
+    "elapsed_s": 74.14116597175598
+  },
+  {
+    "dataset": "casia",
+    "model": "light",
+    "protocol": "speaker",
+    "source": "ravdess",
+    "pretrain_epochs": 200,
+    "test_macro_f1": 11.96330654387242,
+    "test_accuracy": 20.0,
+    "n_train": 600,
+    "n_test": 300,
+    "elapsed_s": 65.92976498603821
+  },
+  {
+    "dataset": "savee",
+    "model": "light",
+    "protocol": "speaker",
+    "source": "ravdess",
+    "pretrain_epochs": 200,
+    "test_macro_f1": 32.77777777777778,
+    "test_accuracy": 43.80952380952381,
+    "n_train": 210,
+    "n_test": 105,
+    "elapsed_s": 42.91524052619934
+  }
+]

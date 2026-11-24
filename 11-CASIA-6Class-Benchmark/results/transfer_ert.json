@@ -1,0 +1,26 @@
+[
+  {
+    "dataset": "casia",
+    "model": "ert",
+    "protocol": "speaker",
+    "source": "ravdess",
+    "pretrain_epochs": 50,
+    "test_macro_f1": 32.773811932445525,
+    "test_accuracy": 34.66666666666667,
+    "n_train": 600,
+    "n_test": 300,
+    "elapsed_s": 4.6508142948150635
+  },
+  {
+    "dataset": "savee",
+    "model": "ert",
+    "protocol": "speaker",
+    "source": "ravdess",
+    "pretrain_epochs": 50,
+    "test_macro_f1": 24.74713395766027,
+    "test_accuracy": 40.95238095238095,
+    "n_train": 210,
+    "n_test": 105,
+    "elapsed_s": 1.6855320930480957
+  }
+]
